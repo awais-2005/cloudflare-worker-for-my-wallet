@@ -1,22 +1,36 @@
 import { setUserAvatar } from '../models/user.js';
 import { ApiError } from '../utils/ApiError.js';
-import { json } from 'hono';
 
-// Set avatar for user
+// Set avatar for current user (by token)
 export async function setAvatar(c) {
   const db = c.env.DB;
-  const id = c.req.param('id');
-  const { avatar } = await c.req.json();
+  const user = c.get('user');
+  if (!user || !user.id) throw new ApiError(401, 'Unauthorized');
+  let avatar;
+  try {
+    const body = await c.req.json();
+    avatar = body.avatar;
+  } catch {
+    throw new ApiError(400, 'Invalid JSON body');
+  }
   if (!avatar) throw new ApiError(400, 'Avatar URL is required');
-  await setUserAvatar(db, id, avatar);
-  return c.json({ message: 'Avatar updated' });
+  const userId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
+  if (!userId || isNaN(userId)) throw new ApiError(400, 'Invalid user id');
+  await setUserAvatar(db, userId, avatar);
+  // Return updated user object
+  const updated = await db.prepare('SELECT id, name, email, avatar FROM users WHERE id = ?').bind(userId).first();
+  updated.avatar = updated.avatar || '';
+  if(!updated.avatar) throw new ApiError(500, "Could not save avatar.");
+  return c.json({message: "Avatar updated."});
 }
+
 
 export async function getUser(c) {
   const db = c.env.DB;
   const id = c.req.param('id');
-  const user = await db.prepare('SELECT id, name, email FROM users WHERE id = ?').bind(id).first();
+  const user = await db.prepare('SELECT id, name, email, avatar FROM users WHERE id = ?').bind(id).first();
   if (!user) throw new ApiError(404, 'User not found');
+  user.avatar = user.avatar || '';
   return c.json(user);
 }
 
@@ -30,6 +44,7 @@ export async function updateUser(c) {
 
 export async function listUsers(c) {
   const db = c.env.DB;
-  const users = await db.prepare('SELECT id, name, email FROM users').all();
-  return c.json(users.results);
+  const users = await db.prepare('SELECT id, name, email, avatar FROM users').all();
+  const results = users.results.map(u => ({ ...u, avatar: u.avatar || '' }));
+  return c.json(results);
 }
