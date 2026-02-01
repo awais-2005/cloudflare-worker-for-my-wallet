@@ -38,3 +38,6 @@ coverage/
 
 # Migrations output
 migrations/*.tmp
+
+# wrangler configs
+*.toml
