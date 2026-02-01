@@ -1,5 +1,7 @@
 import { setUserAvatar } from '../models/user.js';
 import { ApiError } from '../utils/ApiError.js';
+import { hashPassword } from '../utils/hash.js';
+import { signJwt } from '../utils/jwt.js';
 
 // Set avatar for current user (by token)
 export async function setAvatar(c) {
@@ -20,8 +22,8 @@ export async function setAvatar(c) {
   // Return updated user object
   const updated = await db.prepare('SELECT id, name, email, avatar FROM users WHERE id = ?').bind(userId).first();
   updated.avatar = updated.avatar || '';
-  if(!updated.avatar) throw new ApiError(500, "Could not save avatar.");
-  return c.json({message: "Avatar updated."});
+  if (!updated.avatar) throw new ApiError(500, "Could not save avatar.");
+  return c.json({ message: "Avatar updated." });
 }
 
 
@@ -34,12 +36,35 @@ export async function getUser(c) {
   return c.json(user);
 }
 
+export async function getUserInfo(c) {
+  const db = c.env.DB;
+  const user = c.get('user');
+  if (!user || !user.id) throw new ApiError(401, 'Unauthorized');
+  const userId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
+  if (!userId || isNaN(userId)) throw new ApiError(400, 'Invalid user id');
+  const userDetails = await db.prepare('SELECT id, name, email, avatar FROM users WHERE id = ?').bind(userId).first();
+  if (!userDetails) throw new ApiError(404, 'User not found');
+  userDetails.avatar = userDetails.avatar || '';
+  return c.json(userDetails);
+}
+
 export async function updateUser(c) {
   const db = c.env.DB;
-  const id = c.req.param('id');
-  const { name, email } = await c.req.json();
-  await db.prepare('UPDATE users SET name = ?, email = ? WHERE id = ?').bind(name, email, id).run();
-  return c.json({ message: 'User updated' });
+  const user = c.get('user');
+  const { name, email, password } = await c.req.json();
+  if([name, email, password].some((field) => !field)) throw new ApiError(400, "Some field is missing in payload.")
+  const hash = await hashPassword(password);
+  try {
+    await db.prepare('UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?').bind(name, email, hash, user.id).run();
+  } catch (err) {
+    console.log("Err: ", err);
+    throw new ApiError(400, "invalid data");
+  }
+  if(email !== user.email) {
+    const token = await signJwt({ id: user.id, email }, c.env);
+    return c.json({ message: 'User updated', token });
+  }
+  return c.json({ message: 'User updated'});
 }
 
 export async function listUsers(c) {
