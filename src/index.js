@@ -6,10 +6,12 @@ import { handleTransactionRoutes } from './routes/transaction.js';
 import { errorHandler } from './middleware/error.js';
 import { notFoundHandler } from './middleware/notFound.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { authorize } from './middleware/authorization.js';
 
 const app = new Hono();
 
 app.use('*', requestLogger);
+app.use('*', authorize);
 
 handleAuthRoutes(app);
 handleUserRoutes(app);
