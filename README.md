@@ -66,13 +66,14 @@ fetch('/auth/login', {
 
 > All user endpoints require the `Authorization: Bearer <token>` header from login.
 
+
 ### List Users
 - **Endpoint:** `GET /users`
 - **Headers:** `Authorization: Bearer <token>`
 - **Response:**
 ```json
 [
-  { "id": 1, "name": "John Doe", "email": "john@example.com" }
+  { "id": 1, "name": "John Doe", "email": "john@example.com", "avatar": "" }
 ]
 ```
 - **Example (JS):**
@@ -85,15 +86,31 @@ fetch('/users', {
 ```
 
 ### Get User by ID
-- **Endpoint:** `GET /users/:id`
+- **Endpoint:** `GET /user/:id`
 - **Headers:** `Authorization: Bearer <token>`
 - **Response:**
 ```json
-{ "id": 1, "name": "John Doe", "email": "john@example.com" }
+{ "id": 1, "name": "John Doe", "email": "john@example.com", "avatar": "" }
 ```
 - **Example (JS):**
 ```js
-fetch('/users/1', {
+fetch('/user/1', {
+  headers: { 'Authorization': 'Bearer <token>' }
+})
+.then(res => res.json())
+.then(console.log);
+```
+
+### Get Current User Info
+- **Endpoint:** `GET /user/info`
+- **Headers:** `Authorization: Bearer <token>`
+- **Response:**
+```json
+{ "id": 1, "name": "John Doe", "email": "john@example.com", "avatar": "" }
+```
+- **Example (JS):**
+```js
+fetch('/user/info', {
   headers: { 'Authorization': 'Bearer <token>' }
 })
 .then(res => res.json())
@@ -101,35 +118,36 @@ fetch('/users/1', {
 ```
 
 ### Update User
-- **Endpoint:** `PUT /users/:id`
+- **Endpoint:** `PUT /user/update`
 - **Headers:** `Authorization: Bearer <token>`
 - **Body:**
 ```json
 {
   "name": "Jane Doe",
-  "email": "jane@example.com"
+  "email": "jane@example.com",
+  "password": "newpassword"
 }
 ```
 - **Response:**
 ```json
-{ "message": "User updated" }
+{ "message": "User updated", "token": "<JWT_TOKEN>" }
 ```
 - **Example (JS):**
 ```js
-fetch('/users/1', {
+fetch('/user/update', {
   method: 'PUT',
   headers: {
     'Authorization': 'Bearer <token>',
     'Content-Type': 'application/json'
   },
-  body: JSON.stringify({ name: 'Jane Doe', email: 'jane@example.com' })
+  body: JSON.stringify({ name: 'Jane Doe', email: 'jane@example.com', password: 'newpassword' })
 })
 .then(res => res.json())
 .then(console.log);
 ```
 
 ### Set User Avatar
-- **Endpoint:** `PUT /users/:id/avatar`
+- **Endpoint:** `PUT /user/avatar`
 - **Headers:** `Authorization: Bearer <token>`
 - **Body:**
 ```json
@@ -139,11 +157,11 @@ fetch('/users/1', {
 ```
 - **Response:**
 ```json
-{ "message": "Avatar updated" }
+{ "message": "Avatar updated." }
 ```
 - **Example (JS):**
 ```js
-fetch('/users/1/avatar', {
+fetch('/user/avatar', {
   method: 'PUT',
   headers: {
     'Authorization': 'Bearer <token>',
