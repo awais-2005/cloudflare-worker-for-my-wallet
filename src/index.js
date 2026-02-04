@@ -3,13 +3,18 @@ import { handleAuthRoutes } from './routes/auth.js';
 import { handleUserRoutes } from './routes/user.js';
 import { handleHealthRoutes } from './routes/health.js';
 import { handleTransactionRoutes } from './routes/transaction.js';
+
 import { errorHandler } from './middleware/error.js';
 import { notFoundHandler } from './middleware/notFound.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { authorize } from './middleware/authorization.js';
+import { cors } from './middleware/cors.js';
+
 
 const app = new Hono();
 
+
+app.use('*', cors);
 app.use('*', requestLogger);
 app.use('*', authorize);
 
