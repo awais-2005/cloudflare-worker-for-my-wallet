@@ -58,7 +58,7 @@ export async function deleteById(c) {
     if(!user) throw new Error("User not found");
     await db.prepare('DELETE FROM transactions WHERE user_id = ?').bind(userId).run();
     await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
-    return c.json({statusCode: 200, message: `user with id: ${userId} has been deleted.`}, user);
+    return c.json({statusCode: 200, message: `user with id: ${userId} has been deleted.`, user});
   } catch (e) {
     throw new ApiError(400, e);
   }
