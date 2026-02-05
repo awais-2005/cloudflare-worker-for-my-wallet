@@ -42,7 +42,7 @@ export async function getUserInfo(c) {
   if (!user || !user.id) throw new ApiError(401, 'Unauthorized');
   const userId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
   if (!userId || isNaN(userId)) throw new ApiError(400, 'Invalid user id');
-  const userDetails = await db.prepare('SELECT id, name, email, avatar FROM users WHERE id = ?').bind(userId).first();
+  const userDetails = await db.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
   if (!userDetails) throw new ApiError(404, 'User not found');
   userDetails.avatar = userDetails.avatar || '';
   return c.json(userDetails);
@@ -67,15 +67,10 @@ export async function deleteById(c) {
 export async function updateUser(c) {
   const db = c.env.DB;
   const user = c.get('user');
-  const { name, email, password } = await c.req.json();
+  const { name, email } = await c.req.json();
   if([name, email].some((field) => !field)) throw new ApiError(400, "Some field is missing in payload.")
   try {
-    if(password) {
-      const hash = await hashPassword(password);
-      await db.prepare('UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?').bind(name, email, hash, user.id).run();
-    } else {
-      await db.prepare('UPDATE users SET name = ?, email = ? WHERE id = ?').bind(name, email, user.id).run();
-    }
+    await db.prepare('UPDATE users SET name = ?, email = ? WHERE id = ?').bind(name, email, user.id).run();
   } catch (err) {
     console.log("Err: ", err);
     throw new ApiError(400, "invalid data");
