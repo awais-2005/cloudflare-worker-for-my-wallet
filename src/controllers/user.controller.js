@@ -82,6 +82,21 @@ export async function updateUser(c) {
   return c.json({ message: 'User updated'});
 }
 
+export async function updatePassword(c) {
+  const db = c.env.DB;
+  const user = c.get('user');
+  const { password } = await c.req.json();
+  if(!password) throw new ApiError(404, "Password not found in request body.")
+  try {
+    const hash = await hashPassword(password);
+    await db.prepare('UPDATE users SET password = ? WHERE id = ?').bind(hash, user.id).run();
+  } catch (err) {
+    console.log("Err: ", err);
+    throw new ApiError(500, err);
+  }
+  return c.json({ message: 'Password has been updated' });
+}
+
 export async function listUsers(c) {
   const db = c.env.DB;
   const users = await db.prepare('SELECT id, name, email, avatar FROM users').all();

@@ -1,4 +1,4 @@
-import { getUser, getUserInfo, updateUser, listUsers, setAvatar, deleteById } from '../controllers/user.controller.js';
+import { getUser, getUserInfo, updateUser, listUsers, setAvatar, deleteById, updatePassword } from '../controllers/user.controller.js';
 import { authGuard } from '../middleware/authGuard.js';
 
 export function handleUserRoutes(app) {
@@ -8,4 +8,5 @@ export function handleUserRoutes(app) {
   app.get('/user/info', authGuard, getUserInfo);
   app.put('/user/update', authGuard, updateUser);
   app.delete('/user/delete/:id', deleteById);
+  app.put('/user/setpassword/:id', updatePassword);
 }
