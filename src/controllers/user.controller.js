@@ -83,13 +83,14 @@ export async function updateUser(c) {
 }
 
 export async function updatePassword(c) {
+  const id = c.req.param('id');
+  if (!id) throw new ApiError (404, "Id not found in url");
   const db = c.env.DB;
-  const user = c.get('user');
   const { password } = await c.req.json();
   if(!password) throw new ApiError(404, "Password not found in request body.")
   try {
     const hash = await hashPassword(password);
-    await db.prepare('UPDATE users SET password = ? WHERE id = ?').bind(hash, user.id).run();
+    await db.prepare('UPDATE users SET password = ? WHERE id = ?').bind(hash, id).run();
   } catch (err) {
     console.log("Err: ", err);
     throw new ApiError(500, err);
