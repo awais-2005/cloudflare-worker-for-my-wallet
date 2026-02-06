@@ -30,7 +30,7 @@ export async function setAvatar(c) {
 export async function getUser(c) {
   const db = c.env.DB;
   const id = c.req.param('id');
-  const user = await db.prepare('SELECT id, name, email, avatar FROM users WHERE id = ?').bind(id).first();
+  const user = await db.prepare('SELECT id, name, email, currency, avatar FROM users WHERE id = ?').bind(id).first();
   if (!user) throw new ApiError(404, 'User not found');
   user.avatar = user.avatar || '';
   return c.json(user);
@@ -100,7 +100,7 @@ export async function updatePassword(c) {
 
 export async function listUsers(c) {
   const db = c.env.DB;
-  const users = await db.prepare('SELECT id, name, email, avatar FROM users').all();
+  const users = await db.prepare('SELECT id, name, email, currency, avatar FROM users').all();
   const results = users.results.map(u => ({ ...u, avatar: u.avatar || '' }));
   return c.json(results);
 }

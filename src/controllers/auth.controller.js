@@ -4,11 +4,11 @@ import { ApiError } from '../utils/ApiError.js';
 import { otpGenerator } from '../utils/otpGenerator.js';
 
 export async function register(c) {
-  const { name, email, password } = await c.req.json();
+  const { name, email, currency, password } = await c.req.json();
   const db = c.env.DB;
   const hashed = await hashPassword(password);
   try {
-    await db.prepare('INSERT INTO users (name, email, password) VALUES (?, ?, ?)').bind(name, email, hashed).run();
+    await db.prepare('INSERT INTO users (name, email, currency, password) VALUES (?, ?, ?, ?)').bind(name, email, currency, hashed).run();
     return c.json({ message: 'User registered' }, 201);
   } catch (e) {
     console.log("ERR: ", e)

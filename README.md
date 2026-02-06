@@ -1,272 +1,317 @@
+# Cloudflare Worker Backend (D1)
 
-# Cloudflare Worker Backend API Documentation
+Minimal API backend built with Hono on Cloudflare Workers and D1. It provides auth, users, and transactions endpoints behind an API key gate, with optional JWT protection per route.
 
-This document describes all available API endpoints, request/response formats, and example usage in JavaScript (using `fetch`).
+## Quickstart
 
----
+1. Install dependencies.
 
-## Authentication
+   ```bash
+   npm install
+   ```
 
-### Register
-- **Endpoint:** `POST /auth/register`
-- **Body:**
+2. Configure environment variables in `wrangler.toml`.
+
+   Required vars:
+
+   - `API_KEY`: Required on every request via `x-api-key`.
+   - `JWT_SECRET`: Used to sign/verify JWTs.
+   - `RESEND_API_KEY`: Used by `POST /auth/otp` to send email.
+
+3. Apply D1 migrations.
+
+   The schema lives in `migrations/001_init.sql`. Apply it using Wrangler for your D1 database.
+
+4. Run locally.
+
+   ```bash
+   npm run start
+   ```
+
+   Default local URL (Wrangler dev): `http://127.0.0.1:8787`
+
+## Auth Model
+
+All routes require an API key header:
+
+```
+x-api-key: <API_KEY>
+```
+
+Protected routes also require a Bearer token:
+
+```
+authorization: Bearer <JWT>
+```
+
+JWTs are issued by `POST /auth/login` and contain `{ id, email }`. Every request on a protected route verifies the JWT and checks it against the database.
+
+## Error Format
+
+Errors are returned as:
+
+```json
+{ "error": "Message" }
+```
+
+## Database Schema
+
+`migrations/001_init.sql` creates the following tables:
+
+**users**
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | INTEGER | Primary key, autoincrement |
+| name | TEXT | Required |
+| email | TEXT | Required, unique |
+| currency | TEXT | Required (e.g., `PKR`, `USD`) |
+| password | TEXT | Required (SHA-256 hash) |
+
+**transactions**
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | INTEGER | Primary key, autoincrement |
+| user_id | INTEGER | Required, FK to users |
+| amount | REAL | Required |
+| type | TEXT | Required |
+| description | TEXT | Optional |
+| created_at | TEXT | Defaults to `datetime('now')` |
+
+Note: The API includes an `avatar` field in several responses and updates, but the migration does not currently create an `avatar` column. Add a follow-up migration if you want to use avatars.
+
+## API Reference
+
+Base URL:
+
+```
+http://127.0.0.1:8787
+```
+
+All examples below include `x-api-key`. Add `authorization` where required.
+
+### Health
+
+**GET /health**
+
+Returns service status.
+
+Response:
+
+```json
+{ "status": "ok" }
+```
+
+### Auth
+
+**POST /auth/register**
+
+Create a new user.
+
+Request body:
+
 ```json
 {
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "yourpassword"
+  "name": "Alice",
+  "email": "alice@example.com",
+  "currency": "USD",
+  "password": "secret"
 }
 ```
-- **Response:**
+
+Response:
+
+```json
+{ "message": "User registered" }
+```
+
+**POST /auth/login**
+
+Authenticate a user.
+
+Request body:
+
 ```json
 {
-  "message": "User registered"
+  "email": "alice@example.com",
+  "password": "secret"
 }
 ```
-- **Example (JS):**
-```js
-fetch('/auth/register', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'John Doe', email: 'john@example.com', password: 'yourpassword' })
-})
-.then(res => res.json())
-.then(console.log);
-```
 
-### Login
-- **Endpoint:** `POST /auth/login`
-- **Body:**
+Response:
+
 ```json
 {
-  "email": "john@example.com",
-  "password": "yourpassword"
+  "id": 1,
+  "token": "<JWT>"
 }
 ```
-- **Response:**
+
+**POST /auth/otp** (Protected)
+
+Sends an OTP to the authenticated user’s email (Resend). Returns the OTP in the response on success.
+
+Response:
+
 ```json
-{
-  "token": "<JWT_TOKEN>"
-}
-```
-- **Example (JS):**
-```js
-fetch('/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email: 'john@example.com', password: 'yourpassword' })
-})
-.then(res => res.json())
-.then(console.log);
+{ "OTP": "123456" }
 ```
 
----
+### Users
 
-## Users
+**PUT /user/avatar** (Protected)
 
-> All user endpoints require the `Authorization: Bearer <token>` header from login.
+Set avatar URL for the authenticated user.
 
+Request body:
 
-### List Users
-- **Endpoint:** `GET /users`
-- **Headers:** `Authorization: Bearer <token>`
-- **Response:**
 ```json
-[
-  { "id": 1, "name": "John Doe", "email": "john@example.com", "avatar": "" }
-]
-```
-- **Example (JS):**
-```js
-fetch('/users', {
-  headers: { 'Authorization': 'Bearer <token>' }
-})
-.then(res => res.json())
-.then(console.log);
+{ "avatar": "https://example.com/avatar.png" }
 ```
 
-### Get User by ID
-- **Endpoint:** `GET /user/:id`
-- **Headers:** `Authorization: Bearer <token>`
-- **Response:**
-```json
-{ "id": 1, "name": "John Doe", "email": "john@example.com", "avatar": "" }
-```
-- **Example (JS):**
-```js
-fetch('/user/1', {
-  headers: { 'Authorization': 'Bearer <token>' }
-})
-.then(res => res.json())
-.then(console.log);
-```
+Response:
 
-### Get Current User Info
-- **Endpoint:** `GET /user/info`
-- **Headers:** `Authorization: Bearer <token>`
-- **Response:**
-```json
-{ "id": 1, "name": "John Doe", "email": "john@example.com", "avatar": "" }
-```
-- **Example (JS):**
-```js
-fetch('/user/info', {
-  headers: { 'Authorization': 'Bearer <token>' }
-})
-.then(res => res.json())
-.then(console.log);
-```
-
-### Update User
-- **Endpoint:** `PUT /user/update`
-- **Headers:** `Authorization: Bearer <token>`
-- **Body:**
-```json
-{
-  "name": "Jane Doe",
-  "email": "jane@example.com",
-  "password": "newpassword"
-}
-```
-- **Response:**
-```json
-{ "message": "User updated", "token": "<JWT_TOKEN>" }
-```
-- **Example (JS):**
-```js
-fetch('/user/update', {
-  method: 'PUT',
-  headers: {
-    'Authorization': 'Bearer <token>',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ name: 'Jane Doe', email: 'jane@example.com', password: 'newpassword' })
-})
-.then(res => res.json())
-.then(console.log);
-```
-
-### Set User Avatar
-- **Endpoint:** `PUT /user/avatar`
-- **Headers:** `Authorization: Bearer <token>`
-- **Body:**
-```json
-{
-  "avatar": "https://res.cloudinary.com/your-cloud/image/upload/v123/avatar.jpg"
-}
-```
-- **Response:**
 ```json
 { "message": "Avatar updated." }
 ```
-- **Example (JS):**
-```js
-fetch('/user/avatar', {
-  method: 'PUT',
-  headers: {
-    'Authorization': 'Bearer <token>',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ avatar: 'https://res.cloudinary.com/your-cloud/image/upload/v123/avatar.jpg' })
-})
-.then(res => res.json())
-.then(console.log);
+
+**GET /users**
+
+List users.
+
+Response:
+
+```json
+[
+  { "id": 1, "name": "Alice", "email": "alice@example.com", "currency": "USD", "avatar": "" }
+]
 ```
 
----
+**GET /user/:id**
 
-## Transactions
+Get a user by id.
 
-> All transaction endpoints require the `Authorization: Bearer <token>` header from login.
+Response:
 
-### List Transactions
-- **Endpoint:** `GET /transactions`
-- **Headers:** `Authorization: Bearer <token>`
-- **Response:**
+```json
+{ "id": 1, "name": "Alice", "email": "alice@example.com", "currency": "USD", "avatar": "" }
+```
+
+**GET /user/info** (Protected)
+
+Get full user record for the authenticated user. This currently returns all columns from the `users` table, including the password hash.
+
+Response:
+
+```json
+{
+  "id": 1,
+  "name": "Alice",
+  "email": "alice@example.com",
+  "currency": "USD",
+  "password": "<sha256>",
+  "avatar": ""
+}
+```
+
+**PUT /user/update** (Protected)
+
+Update name and email. If email changes, a new JWT is returned.
+
+Request body:
+
+```json
+{ "name": "Alice A.", "email": "alice+new@example.com" }
+```
+
+Response (email changed):
+
+```json
+{ "message": "User updated", "token": "<JWT>" }
+```
+
+Response (email unchanged):
+
+```json
+{ "message": "User updated" }
+```
+
+**DELETE /user/delete/:id**
+
+Deletes a user and their transactions by id.
+
+Response:
+
+```json
+{
+  "statusCode": 200,
+  "message": "user with id: 1 has been deleted.",
+  "user": { "id": 1, "name": "Alice", "email": "alice@example.com", "currency": "USD", "password": "<sha256>" }
+}
+```
+
+**PUT /user/setpassword/:id**
+
+Set a new password for the user id.
+
+Request body:
+
+```json
+{ "password": "newSecret" }
+```
+
+Response:
+
+```json
+{ "message": "Password has been updated" }
+```
+
+### Transactions
+
+**GET /transactions** (Protected)
+
+Lists all transactions (not scoped to the authenticated user).
+
+Response:
+
 ```json
 [
   {
     "id": 1,
     "user_id": 1,
-    "amount": 100.0,
-    "type": "credit",
+    "amount": 20.5,
+    "type": "income",
     "description": "Salary",
-    "created_at": "2026-01-31T12:00:00Z"
+    "created_at": "2026-02-06 12:34:56"
   }
 ]
 ```
-- **Example (JS):**
-```js
-fetch('/transactions', {
-  headers: { 'Authorization': 'Bearer <token>' }
-})
-.then(res => res.json())
-.then(console.log);
-```
 
-### Create Transaction
-- **Endpoint:** `POST /transactions`
-- **Headers:** `Authorization: Bearer <token>`
-- **Body:**
+**POST /transactions** (Protected)
+
+Create a transaction.
+
+Request body:
+
 ```json
 {
   "user_id": 1,
-  "amount": 100.0,
-  "type": "credit",
+  "amount": 20.5,
+  "type": "income",
   "description": "Salary"
 }
 ```
-- **Response:**
+
+Response:
+
 ```json
 { "message": "Transaction created" }
 ```
-- **Example (JS):**
-```js
-fetch('/transactions', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer <token>',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ user_id: 1, amount: 100.0, type: 'credit', description: 'Salary' })
-})
-.then(res => res.json())
-.then(console.log);
-```
 
----
+## Security Notes
 
-## Health Check
-
-### Health
-- **Endpoint:** `GET /health`
-- **Response:**
-```json
-{ "status": "ok" }
-```
-- **Example (JS):**
-```js
-fetch('/health')
-  .then(res => res.json())
-  .then(console.log);
-```
-
----
-
-## Error Responses
-
-All errors return JSON in the following format:
-```json
-{
-  "status": <status_code>,
-  "message": "Error message"
-}
-```
-
----
-
-## Notes
-- All endpoints are relative to your deployed base URL.
-- All protected endpoints require a valid JWT in the `Authorization` header.
-- For avatar, use a valid Cloudinary (or other image host) URL.
-- Dates are in ISO 8601 format.
+- `DELETE /user/delete/:id` and `PUT /user/setpassword/:id` are not protected by JWT. Any caller with the API key can invoke them.
+- `GET /user/info` returns the password hash.
+- `GET /transactions` returns all transactions without user scoping.
+- Passwords are hashed with SHA-256 without salt. Use a stronger hashing approach (e.g., bcrypt/argon2) for production.

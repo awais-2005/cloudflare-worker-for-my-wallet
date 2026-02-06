@@ -1,8 +1,8 @@
 import { ApiError } from '../utils/ApiError.js';
 
 export async function validateRegister(c, next) {
-  const { name, email, password } = await c.req.json();
-  if (!name || !email || !password) throw new ApiError(400, 'Missing fields');
+  const { name, email, currency, password } = await c.req.json();
+  if (!name || !email || !currency || !password) throw new ApiError(400, 'Missing fields');
   await next();
 }
 
