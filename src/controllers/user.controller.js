@@ -98,6 +98,21 @@ export async function updatePassword(c) {
   return c.json({ message: 'Password has been updated' });
 }
 
+export async function updateCurrency(c) {
+  const id = c.req.param('id');
+  if (!id) throw new ApiError (404, "Id not found in url");
+  const db = c.env.DB;
+  const { currency } = await c.req.json();
+  if(!currency) throw new ApiError(404, "Currency not found in request body.")
+  try {
+    await db.prepare('UPDATE users SET currency = ? WHERE id = ?').bind(currency, id).run();
+  } catch (err) {
+    console.log("Err: ", err);
+    throw new ApiError(500, err);
+  }
+  return c.json({ message: 'Currency has been updated' });
+}
+
 export async function listUsers(c) {
   const db = c.env.DB;
   const users = await db.prepare('SELECT id, name, email, currency, avatar FROM users').all();

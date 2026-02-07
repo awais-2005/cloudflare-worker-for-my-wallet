@@ -21,6 +21,9 @@ Minimal API backend built with Hono on Cloudflare Workers and D1. It provides au
 3. Apply D1 migrations.
 
    The schema lives in `migrations/001_init.sql`. Apply it using Wrangler for your D1 database.
+   ```bash
+   npx wrangler d1 migrations apply DB --remote
+   ```
 
 4. Run locally.
 
