@@ -1,6 +1,6 @@
 # Cloudflare Worker Backend (D1)
 
-Minimal API backend built with Hono on Cloudflare Workers and D1. It provides auth, users, and transactions endpoints behind an API key gate, with optional JWT protection per route.
+Minimal API backend built with Hono on Cloudflare Workers and D1. It provides auth, users, transactions, and admin endpoints behind an API key gate, with optional JWT protection per route.
 
 ## Quickstart
 
@@ -153,7 +153,7 @@ Response:
 
 **POST /auth/otp** (Protected)
 
-Sends an OTP to the authenticated user’s email (Resend). Returns the OTP in the response on success.
+Sends an OTP to the authenticated user's email (Resend). Returns the OTP in the response on success.
 
 Response:
 
@@ -270,11 +270,27 @@ Response:
 { "message": "Password has been updated" }
 ```
 
+**PUT /user/setcurrency/:id**
+
+Set a new currency for the user id.
+
+Request body:
+
+```json
+{ "currency": "USD" }
+```
+
+Response:
+
+```json
+{ "message": "Currency has been updated" }
+```
+
 ### Transactions
 
 **GET /transactions** (Protected)
 
-Lists all transactions (not scoped to the authenticated user).
+Lists transactions for the authenticated user.
 
 Response:
 
@@ -291,15 +307,14 @@ Response:
 ]
 ```
 
-**POST /transactions** (Protected)
+**POST /transaction/new** (Protected)
 
-Create a transaction.
+Create a transaction. The `user_id` is derived from the JWT payload.
 
 Request body:
 
 ```json
 {
-  "user_id": 1,
   "amount": 20.5,
   "type": "income",
   "description": "Salary"
@@ -312,9 +327,67 @@ Response:
 { "message": "Transaction created" }
 ```
 
+**POST /transaction/save** (Protected)
+
+Insert a list of transactions for the authenticated user. The `user_id` is derived from the JWT payload.
+
+Request body:
+
+```json
+{
+  "list": [
+    { "amount": 20.5, "type": "income", "description": "Salary" },
+    { "amount": 5.0, "type": "expense", "description": "Coffee" }
+  ]
+}
+```
+
+Response:
+
+```json
+{ "message": "Transactions inserted successfully." }
+```
+
+**PUT /transaction/update/:id** (Protected)
+
+Update one or more fields of a transaction.
+
+Request body (any of):
+
+```json
+{ "amount": 30 }
+```
+
+Response:
+
+```json
+{ "statusCode": 200, "message": "Transactions has been updated successfully." }
+```
+
+**DELETE /transaction/delete/:id** (Protected)
+
+Delete a transaction by id.
+
+Response:
+
+```json
+{ "message": "Transaction has been deleted successfully!" }
+```
+
+### Admin
+
+**DELETE /admin/reset**
+
+Deletes all users and transactions and resets their sequences.
+
+Response:
+
+```json
+{ "message": "Your backend has been cleaned up." }
+```
+
 ## Security Notes
 
-- `DELETE /user/delete/:id` and `PUT /user/setpassword/:id` are not protected by JWT. Any caller with the API key can invoke them.
+- `DELETE /user/delete/:id`, `PUT /user/setpassword/:id`, `PUT /user/setcurrency/:id`, and `DELETE /admin/reset` are not protected by JWT. Any caller with the API key can invoke them.
 - `GET /user/info` returns the password hash.
-- `GET /transactions` returns all transactions without user scoping.
 - Passwords are hashed with SHA-256 without salt. Use a stronger hashing approach (e.g., bcrypt/argon2) for production.
