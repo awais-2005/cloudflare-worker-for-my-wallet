@@ -70,3 +70,19 @@ export async function updateTransaction(c) {
   }
   return c.json({ statusCode: 200, message: "Transactions has been updated successfully."});
 }
+
+export async function saveTransaction(c) {
+  const user_id = getId(c.get('user'));
+  const { list } = await c.req.json();
+  if (!list) throw new ApiError(404, "List of transaction is not found");
+  const db = c.env.DB;
+  const statements = list.map(tx => db.prepare("INSERT INTO transactions (user_id, amount, type, description) VALUES (?, ?, ?, ?)").bind(user_id, tx.amount, tx.type, tx.description));
+  try {
+    await db.batch(statements);
+  } catch (err) {
+    console.log(err);
+    throw new ApiError(500, err);
+  }
+
+  return c.json({message: "Transactions inserted successfully."});
+}
