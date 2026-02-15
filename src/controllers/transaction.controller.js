@@ -13,8 +13,20 @@ export async function createTransaction(c) {
   const db = c.env.DB;
   const { amount, type, description } = await c.req.json();
   if (!user_id || !amount || !type) throw new ApiError(400, 'Missing fields');
-  await db.prepare('INSERT INTO transactions (user_id, amount, type, description) VALUES (?, ?, ?, ?)').bind(user_id, amount, type, description).run();
-  return c.json({ message: 'Transaction created' }, 201);
+  const result = await db
+    .prepare('INSERT INTO transactions (user_id, amount, type, description) VALUES (?, ?, ?, ?)')
+    .bind(user_id, amount, type, description)
+    .run();
+  console.log(result);
+  const id = Number(result?.meta?.last_row_id);
+  
+  return c.json(
+    {
+      message: 'Transaction created',
+      id: Number.isInteger(id) && id > 0 ? id : null
+    },
+    201
+  );
 }
 
 export async function deleteTxById(c) {
@@ -32,7 +44,7 @@ export async function deleteTxById(c) {
   } catch (err) {
     throw new ApiError(400, err);
   }
-
+  
   return c.json({ message: "Transaction has been deleted successfully!" });
 }
 
@@ -44,7 +56,7 @@ export async function updateTransaction(c) {
     throw new ApiError(500, err);
   }
   if(!id) throw new ApiError(500, `Transaction id is ${id}`);
-
+  
   const db = c.env.DB;
   const { amount, type, description } = await c.req.json();
   try {
@@ -74,15 +86,21 @@ export async function updateTransaction(c) {
 export async function saveTransaction(c) {
   const user_id = getId(c.get('user'));
   const { list } = await c.req.json();
-  if (!list) throw new ApiError(404, "List of transaction is not found");
+  if (!Array.isArray(list) || list.length === 0) throw new ApiError(404, "List of transaction is not found");
   const db = c.env.DB;
   const statements = list.map(tx => db.prepare("INSERT INTO transactions (user_id, amount, type, description) VALUES (?, ?, ?, ?)").bind(user_id, tx.amount, tx.type, tx.description));
+  let results;
   try {
-    await db.batch(statements);
+    results = await db.batch(statements);
+    console.log(results);
   } catch (err) {
     console.log(err);
     throw new ApiError(500, err);
   }
-
-  return c.json({message: "Transactions inserted successfully."});
-}
+  
+  const ids = results
+  .map(result => Number(result?.meta?.last_row_id))
+  .filter(id => Number.isInteger(id) && id > 0);
+    
+    return c.json({message: "Transactions inserted successfully.", ids});
+  }
