@@ -11,11 +11,11 @@ export async function listTransactions(c) {
 export async function createTransaction(c) {
   let user_id = getId(c.get('user'));
   const db = c.env.DB;
-  const { amount, type, description } = await c.req.json();
-  if (!user_id || !amount || !type) throw new ApiError(400, 'Missing fields');
+  const { amount, type, description, created_at } = await c.req.json();
+  if ([user_id, amount, type, description, created_at]) throw new ApiError(400, 'Missing fields');
   const result = await db
-    .prepare('INSERT INTO transactions (user_id, amount, type, description) VALUES (?, ?, ?, ?)')
-    .bind(user_id, amount, type, description)
+    .prepare('INSERT INTO transactions (user_id, amount, type, description, created_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(user_id, amount, type, description, created_at)
     .run();
   console.log(result);
   const id = Number(result?.meta?.last_row_id);
@@ -88,7 +88,7 @@ export async function saveTransaction(c) {
   const { list } = await c.req.json();
   if (!Array.isArray(list) || list.length === 0) throw new ApiError(404, "List of transaction is not found");
   const db = c.env.DB;
-  const statements = list.map(tx => db.prepare("INSERT INTO transactions (user_id, amount, type, description) VALUES (?, ?, ?, ?)").bind(user_id, tx.amount, tx.type, tx.description));
+  const statements = list.map(tx => db.prepare("INSERT INTO transactions (user_id, amount, type, description, created_at) VALUES (?, ?, ?, ?, ?)").bind(user_id, tx.amount, tx.type, tx.description, tx.created_at));
   let results;
   try {
     results = await db.batch(statements);
