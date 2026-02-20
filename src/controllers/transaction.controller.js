@@ -12,7 +12,7 @@ export async function createTransaction(c) {
   let user_id = getId(c.get('user'));
   const db = c.env.DB;
   const { amount, type, description, created_at } = await c.req.json();
-  if ([user_id, amount, type, description, created_at]) throw new ApiError(400, 'Missing fields');
+  if ([user_id + "", amount + "", type, description, created_at].some(f => !f.trim())) throw new ApiError(400, 'Missing fields');
   const result = await db
     .prepare('INSERT INTO transactions (user_id, amount, type, description, created_at) VALUES (?, ?, ?, ?, ?)')
     .bind(user_id, amount, type, description, created_at)
